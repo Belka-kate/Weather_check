@@ -38,6 +38,8 @@ def get_weather(city):
         print("something is wrong")
         return None
 
+active_timers = {}
+
 # Функция для добавления пользователя в базу данных
 def add_user(user_id, city, interval):
     connection = connect_db()
@@ -131,21 +133,27 @@ def handle_reply(update: Update, context: CallbackContext):
 
 # Отправка обновлений погоды
 def send_weather_update(message, user_id):
-    print("0")
     user = get_user(user_id)
     if user:
         city = user[2]
         weather = get_weather(city)
-        print("1")
         if weather:
-            print("2")
             temp = weather['current']['temp_c']
             description = weather['current']['condition']['text']
             msg = f"Обновление погоды в {city.title()}: {temp}°C, {description}."
             message.reply_text(msg)
 
             interval = user[3]
-            threading.Timer(interval, send_weather_update, args=[message, user_id]).start()
+
+            # Останавливаем предыдущий таймер, если он существует
+            timer = active_timers.get(user_id)
+            if timer is not None:
+                timer.cancel()
+
+            # Создаем и запускаем новый таймер
+            new_timer = threading.Timer(interval, send_weather_update, args=[message, user_id])
+            new_timer.start()
+            active_timers[user_id] = new_timer
 
 # Основная функция для запуска бота
 def main():
